@@ -2,10 +2,10 @@ from telegram.ext import Updater, MessageHandler, Filters
 from PIL import Image, ImageDraw, ImageFont
 
 # Define your bot token here
-TOKEN = '5974826484:AAG5K_drboV65jqouJtfGdrVQPoOlA6YyMw'
+TOKEN = 'Your Token'
 
 # Define the watermark text here
-WATERMARK_TEXT = 'Marinoperfume'
+WATERMARK_TEXT = 'Your Watermark Text'
 
 # Define the font used for the watermark here
 FONT = ImageFont.load_default()
