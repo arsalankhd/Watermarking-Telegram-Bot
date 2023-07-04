@@ -1,45 +1,68 @@
-from telegram.ext import Updater, MessageHandler, Filters
+import os
 from PIL import Image, ImageDraw, ImageFont
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
-# Define your bot token here
-TOKEN = 'Your Token'
+# Replace with your Telegram bot token
+TOKEN = 'Your Bot Token Here'
 
-# Define the watermark text here
+# Define the watermark text and font size
 WATERMARK_TEXT = 'Your Watermark Text'
 
-# Define the font used for the watermark here
-FONT = ImageFont.load_default()
+def add_watermark(image_file):
+    # Open the image and get its width and height
+    img = Image.open(image_file)
+    img = img.convert("RGBA")
+    # Create a new transparent layer for the watermark
+    watermark = Image.new(mode='RGBA', size=img.size, color=(0, 0, 0, 0))
+    # Use a Draw object to write the watermark text on the transparent layer
+    draw = ImageDraw.Draw(watermark)
+    font = ImageFont.truetype('fonts/micross.ttf', 38)
+    x = 13
+    y = 0
+    for i in range(4):
+        for j in range(25):
+            draw.text((x, y), WATERMARK_TEXT, fill=(225, 234, 235, 50), font=font)
+            y = y+60
+        y = 0
+        x = x + 265
+    # Rotate the watermark layer by the specified angle
+    # watermark = watermark.rotate(ANGLE, expand=True)
+    watermark = watermark.resize(img.size)
 
-# Define a function that adds a watermark to an image
-def add_watermark_to_image(file):
-    image = Image.open(file)
-    draw = ImageDraw.Draw(image)
-    draw.text((0, 0), WATERMARK_TEXT, fill=(255, 255, 255), font=FONT)
-    watermarked_file = 'watermarked_' + file
-    image.save(watermarked_file)
-    return watermarked_file
+    # Blend the watermark layer with the original image using alpha compositing
+    return Image.alpha_composite(img, watermark).convert("RGB")
 
-# Set up the telegram bot webhook
-updater = Updater(token=TOKEN, use_context=True)
-dispatcher = updater.dispatcher
+def start(update, context):
+    """Send a message when the command /start is issued."""
+    update.message.reply_text('Hi! Send me an image and I\'ll add a watermark to it.')
 
-# Define a function to handle incoming messages
-def handle_message(update, context):
-    # Check if the message contains an image
-    if update.message.photo:
-        # Get the highest quality version of the image
-        photo_file = update.message.photo[-1].get_file()
-        # Download the image file
-        file_path = photo_file.download()
-        # Add the watermark to the image
-        watermarked_file = add_watermark_to_image(file_path)
-        # Send the watermarked image back to the user
-        context.bot.send_photo(chat_id=update.effective_chat.id, photo=open(watermarked_file, 'rb'))
-    else:
-        # If the message doesn't contain an image, send an error message
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Please send an image.')
+def echo(update, context):
+    """Echo the user message."""
+    file_id = update.message.photo[-1].file_id
+    new_file = context.bot.get_file(file_id)
+    filename = os.path.join('downloads', f'{file_id}.jpg')
+    new_file.download(filename)
+    new_image = add_watermark(filename)
+    new_filename = os.path.join('downloads', f'{file_id}_watermarked.jpg')
+    new_image.save(new_filename, 'JPEG')
+    context.bot.send_photo(update.message.chat_id, photo=open(new_filename, 'rb'))
 
-# Set up the message handler and start the bot
-message_handler = MessageHandler(Filters.photo, handle_message)
-dispatcher.add_handler(message_handler)
-updater.start_polling()
+def main():
+    """Start the bot."""
+    updater = Updater(token=TOKEN, use_context=True)
+    dp = updater.dispatcher
+
+    # Add command handlers
+    dp.add_handler(CommandHandler("start", start))
+
+    # Add message handler for images
+    dp.add_handler(MessageHandler(Filters.photo, echo))
+
+    # Start the bot
+    updater.start_polling()
+
+    # Run the bot until you press Ctrl-C or the process receives SIGINT, SIGTERM or SIGABRT
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
